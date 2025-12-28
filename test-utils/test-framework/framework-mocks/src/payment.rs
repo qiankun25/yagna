@@ -21,6 +21,7 @@ use ya_payment::processor::PaymentProcessor;
 use ya_persistence::executor::DbExecutor;
 use ya_service_bus::typed as bus;
 use ya_service_bus::typed::Endpoint;
+use ya_staking::StakingState;
 
 use ya_dummy_driver as dummy;
 use ya_erc20_driver as erc20;
@@ -54,6 +55,7 @@ pub struct RealPayment {
     processor: Arc<PaymentProcessor>,
 
     config: Arc<Config>,
+    staking: Option<Arc<StakingState>>,
 
     allocation_release_tasks: AllocationReleaseTasks,
 }
@@ -62,9 +64,19 @@ impl RealPayment {
     pub fn new(name: &str, testdir: &Path) -> Self {
         let db = Self::create_db(testdir, "payment.db").unwrap();
         let allocation_release_tasks = AllocationReleaseTasks::new_for_mocks_only();
+
+        let staking = match StakingState::new(testdir) {
+            Ok(s) => Some(Arc::new(s)),
+            Err(e) => {
+                log::error!("Failed to initialize staking state at {:?}: {}", testdir, e);
+                None
+            }
+        };
+
         let processor = Arc::new(PaymentProcessor::new(
             db.clone(),
             allocation_release_tasks.clone(),
+            staking.clone(),
         ));
         let config = Config::from_env().unwrap().run_sync_job(false);
 
@@ -74,6 +86,7 @@ impl RealPayment {
             db,
             processor,
             config: Arc::new(config),
+            staking,
             allocation_release_tasks,
         }
     }
@@ -104,7 +117,7 @@ impl RealPayment {
 
     pub fn bind_rest(&self) -> actix_web::Scope {
         let db = self.db.clone();
-        web_scope(&db, self.allocation_release_tasks.clone())
+        web_scope(&db, self.allocation_release_tasks.clone(), self.staking.clone())
     }
 
     pub async fn start_dummy_driver(&self) -> anyhow::Result<()> {

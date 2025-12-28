@@ -250,6 +250,17 @@ impl MockNode {
         Ok(())
     }
 
+    pub fn rest_client(&self, appkey: &str) -> anyhow::Result<WebClient> {
+        Ok(WebClient::builder()
+            .api_url(self.rest_url.clone())
+            .auth_token(appkey)
+            .build())
+    }
+
+    pub fn rest_url(&self) -> Url {
+        self.rest_url.clone()
+    }
+
     fn gsb_router_address(&self) -> anyhow::Result<Url> {
         let gsb_url = match std::env::consts::FAMILY {
             // It would be better to create socket in self.testdir, but it's not possible, because

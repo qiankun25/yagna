@@ -9,8 +9,10 @@ use futures::FutureExt;
 use std::{sync::Arc, time::Duration};
 use ya_core_model::payment::local as pay_local;
 use ya_persistence::executor::DbExecutor;
+use ya_service_api::CliCtx;
 use ya_service_api_interfaces::*;
 use ya_service_bus::typed as bus;
+use ya_staking::StakingState;
 
 #[macro_use]
 extern crate diesel;
@@ -60,15 +62,38 @@ impl Service for PaymentService {
 }
 
 impl PaymentService {
-    pub async fn gsb<Context: Provider<Self, DbExecutor>>(context: &Context) -> anyhow::Result<()> {
-        let db = context.component();
+    pub async fn gsb<Context: Provider<Self, DbExecutor> + Provider<Self, CliCtx>>(
+        context: &Context,
+    ) -> anyhow::Result<()> {
+        let db: DbExecutor = context.component();
         db.apply_migration(migrations::run_with_output)
             .map_err(|e| anyhow::anyhow!("Failed to apply payment service migrations: {}", e))?;
+
+        let cli_ctx: CliCtx = context.component();
+        let staking_path = cli_ctx.data_dir;
+        let staking = match StakingState::new(&staking_path) {
+            Ok(s) => {
+                log::info!("Staking state initialized at {:?}", staking_path);
+                Some(Arc::new(s))
+            }
+            Err(e) => {
+                log::error!(
+                    "Failed to initialize staking state at {:?}: {}",
+                    staking_path,
+                    e
+                );
+                None
+            }
+        };
 
         let config = Arc::new(Config::from_env()?);
         let allocation_release_tasks = get_allocation_release_tasks();
 
-        let processor = Arc::new(PaymentProcessor::new(db.clone(), allocation_release_tasks));
+        let processor = Arc::new(PaymentProcessor::new(
+            db.clone(),
+            allocation_release_tasks,
+            staking,
+        ));
         self::service::bind_service(&db, processor.clone(), config).await?;
 
         processor.process_post_migration_jobs().await?;
@@ -80,8 +105,24 @@ impl PaymentService {
         Ok(())
     }
 
-    pub fn rest<Context: Provider<Self, DbExecutor>>(ctx: &Context) -> actix_web::Scope {
-        api::web_scope(&ctx.component(), get_allocation_release_tasks())
+    pub fn rest<Context: Provider<Self, DbExecutor> + Provider<Self, CliCtx>>(
+        ctx: &Context,
+    ) -> actix_web::Scope {
+        let cli_ctx: CliCtx = ctx.component();
+        let staking_path = cli_ctx.data_dir;
+        let staking = match StakingState::new(&staking_path) {
+            Ok(s) => Some(Arc::new(s)),
+            Err(e) => {
+                log::error!(
+                    "Failed to initialize staking state at {:?}: {}",
+                    staking_path,
+                    e
+                );
+                None
+            }
+        };
+
+        api::web_scope(&ctx.component(), get_allocation_release_tasks(), staking)
     }
 
     pub async fn shut_down() {

@@ -14,7 +14,7 @@ use crate::payment_sync::SYNC_NOTIFS_NOTIFY;
 use crate::timeout_lock::{MutexTimeoutExt, RwLockTimeoutExt};
 
 use actix_web::web::Data;
-use bigdecimal::{BigDecimal, Zero};
+use bigdecimal::{BigDecimal, ToPrimitive, Zero};
 use chrono::{DateTime, Utc};
 use futures::{FutureExt, TryFutureExt};
 use metrics::counter;
@@ -35,6 +35,7 @@ use ya_client_model::payment::allocation::Deposit;
 use ya_client_model::payment::{
     Account, ActivityPayment, AgreementPayment, DriverDetails, Network, Payment,
 };
+use ya_staking::StakingState;
 use ya_core_model::driver::{
     self, driver_bus_id, AccountMode, DriverReleaseDeposit, GetAccountBalanceResult,
     GetRpcEndpointsResult, PaymentConfirmation, PaymentDetails, ShutDown, ValidateAllocation,
@@ -313,6 +314,7 @@ pub struct PaymentProcessor {
     in_shutdown: AtomicBool,
     schedule_payment_guard: Arc<Mutex<()>>,
     allocation_tasks: AllocationReleaseTasks,
+    pub staking: Option<Arc<StakingState>>,
 }
 
 #[derive(Debug, PartialEq, Error)]
@@ -365,7 +367,11 @@ struct PaymentNotificationValue {
 }
 
 impl PaymentProcessor {
-    pub fn new(db_executor: DbExecutor, allocation_release_tasks: AllocationReleaseTasks) -> Self {
+    pub fn new(
+        db_executor: DbExecutor,
+        allocation_release_tasks: AllocationReleaseTasks,
+        staking: Option<Arc<StakingState>>,
+    ) -> Self {
         Self {
             db_executor: Arc::new(Mutex::new(db_executor)),
             registry: Default::default(),
@@ -373,6 +379,7 @@ impl PaymentProcessor {
             schedule_payment_guard: Arc::new(Mutex::new(())),
             batch_cycle_tasks: Arc::new(std::sync::Mutex::new(BatchCycleTaskManager::new())),
             allocation_tasks: allocation_release_tasks,
+            staking,
         }
     }
 
@@ -1120,6 +1127,7 @@ impl PaymentProcessor {
         let payer_id = payment.payer_id;
         let payee_addr = &payment.payee_addr;
         let payer_addr = &payment.payer_addr;
+        let payment_amount = payment.amount.clone();
 
         // Verify recipient address
         if &details.recipient != payee_addr {
@@ -1216,6 +1224,20 @@ impl PaymentProcessor {
                 payment_dao
                     .insert_received(payment, payee_id, Some(signature), canonical)
                     .await?;
+            }
+        }
+
+        if let Some(staking) = &self.staking {
+            if let Some(amount_f64) = payment_amount.to_f64() {
+                if let Err(e) = staking.reward(&payee_id.to_string(), amount_f64) {
+                    log::warn!("Failed to record staking reward for {}: {}", payee_id, e);
+                } else {
+                    log::info!(
+                        "Recorded staking reward of {} for {}",
+                        amount_f64,
+                        payee_id
+                    );
+                }
             }
         }
 

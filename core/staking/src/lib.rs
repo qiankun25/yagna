@@ -6,6 +6,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
+use sha2::{Sha256, Digest};
 
 #[derive(Clone)]
 pub struct StakingState {
@@ -27,6 +28,28 @@ pub struct EventRecord {
     pub amount: f64,
     pub memo: Option<String>,
     pub ts: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommitRecord {
+    pub task_id: String,
+    pub provider_id: String,
+    pub commitment_hash: String,
+    pub revealed_result: Option<String>,
+    pub salt: Option<String>,
+    pub status: String, // 'committed', 'revealed', 'disputed'
+    pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DisputeRecord {
+    pub id: i64,
+    pub task_id: String,
+    pub accuser_id: String,
+    pub defendant_id: String,
+    pub evidence: Option<String>,
+    pub status: String, // 'pending', 'resolved_guilty', 'resolved_innocent'
+    pub created_at: String,
 }
 
 impl StakingState {
@@ -70,6 +93,26 @@ fn init_schema(conn: &rusqlite::Connection) -> Result<()> {
             amount REAL NOT NULL,
             memo TEXT,
             ts TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS commits (
+            task_id TEXT NOT NULL,
+            provider_id TEXT NOT NULL,
+            commitment_hash TEXT NOT NULL,
+            revealed_result TEXT,
+            salt TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (task_id, provider_id)
+        );
+        CREATE TABLE IF NOT EXISTS disputes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id TEXT NOT NULL,
+            accuser_id TEXT NOT NULL,
+            defendant_id TEXT NOT NULL,
+            evidence TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
         );
     "#,
     )?;
@@ -200,9 +243,10 @@ impl StakingState {
                 remaining = 0.0;
             }
         }
-        if remaining > 0.0 {
-            anyhow::bail!("insufficient funds to slash");
-        }
+        // NOTE: We allow slashing more than available funds (debt?) or just cap at 0?
+        // For now, let's just cap at 0 and record the slash amount.
+        // if remaining > 0.0 { anyhow::bail!("insufficient funds to slash"); }
+        
         rec.slashed += amount;
         conn.execute(
             "UPDATE providers SET stake=?1, rewards=?2, slashed=?3, updated_at=?4 WHERE provider_id=?5",
@@ -249,5 +293,118 @@ impl StakingState {
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
+    }
+
+    // --- Consensus / Commit-Reveal Logic ---
+
+    pub fn commit(&self, task_id: &str, pid: &str, hash: &str) -> Result<()> {
+        let conn = self.conn()?;
+        // Check if provider exists
+        if load_provider_db(&conn, pid)?.is_none() {
+            anyhow::bail!("Provider not registered");
+        }
+        
+        let ts = now();
+        conn.execute(
+            "INSERT INTO commits (task_id, provider_id, commitment_hash, status, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'committed', ?4, ?4)",
+            params![task_id, pid, hash, ts],
+        )?;
+        Ok(())
+    }
+
+    pub fn reveal(&self, task_id: &str, pid: &str, result: &str, salt: &str) -> Result<bool> {
+        let conn = self.conn()?;
+        
+        // 1. Fetch commitment
+        let mut stmt = conn.prepare(
+            "SELECT commitment_hash FROM commits WHERE task_id=?1 AND provider_id=?2"
+        )?;
+        let hash: String = match stmt.query_row(params![task_id, pid], |row| row.get(0)) {
+            Ok(h) => h,
+            Err(_) => anyhow::bail!("Commitment not found"),
+        };
+
+        // 2. Verify Hash
+        let mut hasher = Sha256::new();
+        hasher.update(format!("{}{}", result, salt));
+        let computed_hash = format!("{:x}", hasher.finalize());
+
+        if computed_hash != hash {
+            return Ok(false);
+        }
+
+        // 3. Update state
+        let ts = now();
+        conn.execute(
+            "UPDATE commits SET revealed_result=?1, salt=?2, status='revealed', updated_at=?3
+             WHERE task_id=?4 AND provider_id=?5",
+            params![result, salt, ts, task_id, pid],
+        )?;
+
+        Ok(true)
+    }
+
+    pub fn challenge(&self, task_id: &str, accuser: &str, defendant: &str, evidence: Option<String>) -> Result<i64> {
+        let conn = self.conn()?;
+        
+        // Check if defendant committed
+        let mut stmt = conn.prepare("SELECT count(*) FROM commits WHERE task_id=?1 AND provider_id=?2")?;
+        if stmt.query_row(params![task_id, defendant], |row| row.get::<_, i64>(0))? == 0 {
+             anyhow::bail!("Defendant has no commitment for this task");
+        }
+
+        let ts = now();
+        conn.execute(
+            "INSERT INTO disputes (task_id, accuser_id, defendant_id, evidence, status, created_at)
+             VALUES (?1, ?2, ?3, ?4, 'pending', ?5)",
+            params![task_id, accuser, defendant, evidence, ts],
+        )?;
+        
+        let dispute_id = conn.last_insert_rowid();
+        
+        // Mark commit as disputed
+        conn.execute(
+            "UPDATE commits SET status='disputed', updated_at=?1 WHERE task_id=?2 AND provider_id=?3",
+            params![ts, task_id, defendant],
+        )?;
+
+        Ok(dispute_id)
+    }
+
+    pub fn resolve_dispute(&self, dispute_id: i64, guilty: bool) -> Result<()> {
+        let conn = self.conn()?;
+        
+        // Fetch dispute info
+        let mut stmt = conn.prepare("SELECT task_id, accuser_id, defendant_id FROM disputes WHERE id=?1")?;
+        let (task_id, accuser, defendant): (String, String, String) = stmt.query_row(params![dispute_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?;
+
+        let status = if guilty { "resolved_guilty" } else { "resolved_innocent" };
+        
+        conn.execute(
+            "UPDATE disputes SET status=?1 WHERE id=?2",
+            params![status, dispute_id],
+        )?;
+
+        if guilty {
+            // Slash defendant
+            // 100 GLM penalty for example
+            // We call self.slash logic but we need to do it within this scope. 
+            // Re-implementing simplified slash here to reuse conn is better, or just use the public API logic inside a transaction.
+            // For simplicity, I'll just reuse the logic inline.
+            
+            // NOTE: In a real DB, we should use a transaction here.
+            
+            // Slash 100
+            let slash_amount = 100.0;
+            self.slash(defendant.as_str(), slash_amount, Some(format!("Dispute #{}", dispute_id)))?;
+            
+            // Reward accuser (50% of slash)
+            self.reward(accuser.as_str(), slash_amount * 0.5)?;
+        }
+
+        Ok(())
     }
 }

@@ -9984,6 +9984,7 @@ dependencies = [
  "ya-service-bus",
  "ya-std-utils",
  "ya-utils-path",
+ "ya_staking",
 ]
 
 [[package]]
@@ -10378,6 +10379,7 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "anyhow",
+ "awc",
  "base64 0.12.3",
  "bigdecimal 0.2.2",
  "chrono",
@@ -10406,6 +10408,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test 0.5.1 (git+https://github.com/tworec/serial_test.git?branch=actix_rt_test)",
+ "sha2 0.10.9",
  "structopt",
  "strum 0.24.1",
  "test-context",
@@ -10435,6 +10438,7 @@ dependencies = [
  "ya-service-api-web",
  "ya-service-bus",
  "ya-std-utils",
+ "ya_staking",
 ]
 
 [[package]]
@@ -11193,6 +11197,7 @@ dependencies = [
  "r2d2_sqlite",
  "rusqlite",
  "serde",
+ "sha2 0.10.9",
 ]
 
 [[package]]

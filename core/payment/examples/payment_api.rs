@@ -233,6 +233,7 @@ async fn main() -> anyhow::Result<()> {
     let processor = Arc::new(PaymentProcessor::new(
         db.clone(),
         AllocationReleaseTasks::new_for_mocks_only(),
+        None,
     ));
     ya_payment::service::bind_service(
         &db,

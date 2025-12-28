@@ -1,9 +1,11 @@
 use crate::alloc_release_task::AllocationReleaseTasks;
 use actix_web::web::{self, Data};
 use actix_web::Scope;
+use std::sync::Arc;
 use ya_client_model::payment::PAYMENT_API_PATH;
 use ya_persistence::executor::DbExecutor;
 use ya_service_api_web::scope::ExtendableScope;
+use ya_staking::StakingState;
 
 mod accounts;
 pub mod allocations;
@@ -16,6 +18,7 @@ mod cycle;
 mod guard;
 mod pay_activities;
 mod pay_agreements;
+pub mod staking;
 
 pub fn api_scope(scope: Scope) -> Scope {
     scope
@@ -29,12 +32,18 @@ pub fn api_scope(scope: Scope) -> Scope {
         .extend(pay_activities::register_endpoints)
         .extend(batch::register_endpoints)
         .extend(cycle::register_endpoints)
+        .extend(staking::register_endpoints)
 }
 
-pub fn web_scope(db: &DbExecutor, allocation_release_tasks: AllocationReleaseTasks) -> Scope {
+pub fn web_scope(
+    db: &DbExecutor,
+    allocation_release_tasks: AllocationReleaseTasks,
+    staking: Option<Arc<StakingState>>,
+) -> Scope {
     Scope::new(PAYMENT_API_PATH)
         .app_data(Data::new(db.clone()))
         .app_data(Data::new(allocation_release_tasks))
+        .app_data(Data::new(staking))
         .service(api_scope(Scope::new("")))
     // TODO: TEST
     // Scope::new(PAYMENT_API_PATH).extend(api_scope).app_data(Data::new(db.clone()))

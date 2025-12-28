@@ -26,6 +26,7 @@ ya-service-api-interfaces.workspace = true
 ya-service-api-web.workspace = true
 ya-service-bus = { workspace = true }
 ya-std-utils.workspace = true
+ya_staking = { path = "../staking" }
 
 actix-web = "4"
 anyhow = "1.0"
@@ -85,6 +86,8 @@ ethsign = "0.8"
 serial_test = { git = "https://github.com/tworec/serial_test.git", branch = "actix_rt_test", features = ["actix-rt2"] }
 test-context = "0.1.4"
 url = "2.5"
+awc = "3"
+sha2 = "0.10"
 
 [lints]
 workspace = true

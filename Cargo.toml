@@ -230,6 +230,7 @@ members = [
   "core/serv-api/interfaces",
   "core/serv-api/web",
   "core/sgx",
+  "core/verifier",
   "core/version",
   "core/vpn",
   "exe-unit/components/counters",

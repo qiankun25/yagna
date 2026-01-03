@@ -1,0 +1,155 @@
+﻿cargo :    Compiling ya-verifier v0.1.0 (D:\yagna\core\verifier)
+所在位置 C:\Users\Lenovo\AppData\Local\Temp\ps-script-a1c9a9b5-e0a7-469c-8605-cea5968ba7b0.ps1:7 字符: 1
++ cargo test --package ya-verifier attack_tests::tests::test_attack_tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling ya...\core\verifier):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: unused import: `std::sync::Arc`
+   --> core\verifier\src\attack_tests.rs:683:9
+    |
+683 |     use std::sync::Arc;
+    |         ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `tokio::sync::RwLock`
+   --> core\verifier\src\attack_tests.rs:684:9
+    |
+684 |     use tokio::sync::RwLock;
+    |         ^^^^^^^^^^^^^^^^^^^
+
+error[E0369]: binary operation `>=` cannot be applied to type `&slashing::OffenseSeverity`
+   --> core\verifier\src\attack_tests.rs:753:41
+    |
+753 |         severity_levels.last().unwrap() >= severity_levels.first().unwrap();
+    |         ------------------------------- ^^ -------------------------------- &slashing::OffenseSeverity
+    |         |
+    |         &slashing::OffenseSeverity
+    |
+note: an implementation of `PartialOrd` might be missing for `slashing::OffenseSeverity`
+   --> core\verifier\src\slashing.rs:16:1
+    |
+ 16 | pub enum OffenseSeverity {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^ must implement `PartialOrd`
+help: consider annotating `slashing::OffenseSeverity` with `#[derive(PartialEq, PartialOrd)]`
+   --> core\verifier\src\slashing.rs:16:1
+    |
+ 16 + #[derive(PartialEq, PartialOrd)]
+ 17 | pub enum OffenseSeverity {
+    |
+
+error[E0308]: mismatched types
+   --> core\verifier\src\attack_tests.rs:868:26
+    |
+868 |             stdout: Some("output1".to_string()),
+    |                     ---- ^^^^^^^^^^^^^^^^^^^^^ expected `CommandOutput`, found `String`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `std::string::String` due to the type of the argument passed
+   --> core\verifier\src\attack_tests.rs:868:21
+    |
+868 |             stdout: Some("output1".to_string()),
+    |                     ^^^^^---------------------^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/1159e78c4747b02ef996e55082b704c09b970588\library\core\src\option.rs:601:5
+help: try wrapping the expression in `ya_client_model::activity::CommandOutput::Str`
+    |
+868 |             stdout: Some(ya_client_model::activity::CommandOutput::Str("output1".to_string())),
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++                     +
+
+error[E0308]: mismatched types
+   --> core\verifier\src\attack_tests.rs:877:26
+    |
+877 |             stdout: Some("output2".to_string()),
+    |                     ---- ^^^^^^^^^^^^^^^^^^^^^ expected `CommandOutput`, found `String`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `std::string::String` due to the type of the argument passed
+   --> core\verifier\src\attack_tests.rs:877:21
+    |
+877 |             stdout: Some("output2".to_string()),
+    |                     ^^^^^---------------------^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/1159e78c4747b02ef996e55082b704c09b970588\library\core\src\option.rs:601:5
+help: try wrapping the expression in `ya_client_model::activity::CommandOutput::Str`
+    |
+877 |             stdout: Some(ya_client_model::activity::CommandOutput::Str("output2".to_string())),
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++                     +
+
+error[E0308]: mismatched types
+   --> core\verifier\src\attack_tests.rs:904:26
+    |
+904 |             stdout: Some("output1".to_string()), // Correct
+    |                     ---- ^^^^^^^^^^^^^^^^^^^^^ expected `CommandOutput`, found `String`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `std::string::String` due to the type of the argument passed
+   --> core\verifier\src\attack_tests.rs:904:21
+    |
+904 |             stdout: Some("output1".to_string()), // Correct
+    |                     ^^^^^---------------------^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/1159e78c4747b02ef996e55082b704c09b970588\library\core\src\option.rs:601:5
+help: try wrapping the expression in `ya_client_model::activity::CommandOutput::Str`
+    |
+904 |             stdout: Some(ya_client_model::activity::CommandOutput::Str("output1".to_string())), // Correct
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++                     +
+
+error[E0308]: mismatched types
+   --> core\verifier\src\attack_tests.rs:913:26
+    |
+913 |             stdout: Some("wrong_output".to_string()),
+    |                     ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `CommandOutput`, found `String`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `std::string::String` due to the type of the argument passed
+   --> core\verifier\src\attack_tests.rs:913:21
+    |
+913 |             stdout: Some("wrong_output".to_string()),
+    |                     ^^^^^--------------------------^
+    |                          |
+    |                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/1159e78c4747b02ef996e55082b704c09b970588\library\core\src\option.rs:601:5
+help: try wrapping the expression in `ya_client_model::activity::CommandOutput::Str`
+    |
+913 |             stdout: Some(ya_client_model::activity::CommandOutput::Str("wrong_output".to_string())),
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++                          +
+
+error[E0308]: mismatched types
+    --> core\verifier\src\attack_tests.rs:1018:26
+     |
+1018 |             stdout: Some("\0\0\0".to_string()),
+     |                     ---- ^^^^^^^^^^^^^^^^^^^^ expected `CommandOutput`, found `String`
+     |                     |
+     |                     arguments to this enum variant are incorrect
+     |
+help: the type constructed contains `std::string::String` due to the type of the argument passed
+    --> core\verifier\src\attack_tests.rs:1018:21
+     |
+1018 |             stdout: Some("\0\0\0".to_string()),
+     |                     ^^^^^--------------------^
+     |                          |
+     |                          this argument influences the type of `Some`
+note: tuple variant defined here
+    --> /rustc/1159e78c4747b02ef996e55082b704c09b970588\library\core\src\option.rs:601:5
+help: try wrapping the expression in `ya_client_model::activity::CommandOutput::Str`
+     |
+1018 |             stdout: Some(ya_client_model::activity::CommandOutput::Str("\0\0\0".to_string())),
+     |                          ++++++++++++++++++++++++++++++++++++++++++++++                    +
+
+Some errors have detailed explanations: E0308, E0369.
+For more information about an error, try `rustc --explain E0308`.
+warning: `ya-verifier` (lib test) generated 2 warnings
+error: could not compile `ya-verifier` (lib test) due to 6 previous errors; 2 warnings emitted

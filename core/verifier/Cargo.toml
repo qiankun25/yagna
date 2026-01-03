@@ -1,0 +1,31 @@
+[package]
+name = "ya-verifier"
+version = "0.1.0"
+authors = ["Golem Factory <contact@golem.network>"]
+edition = "2018"
+
+[dependencies]
+ya-core-model = { workspace = true, features = ["activity", "market"] }
+ya-client-model = { workspace = true }
+ya-service-bus = { workspace = true }
+ya-service-api.workspace = true
+ya-service-api-interfaces.workspace = true
+
+actix = { version = "0.13", default-features = false }
+anyhow = "1.0"
+chrono = "0.4"
+futures = "0.3"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tokio = { version = "1", features = ["time", "sync"] }
+uuid = { version = "0.8", features = ["serde", "v4"] }
+sha2 = "0.10"
+hex = { workspace = true }
+metrics = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
+actix-rt = "2.7"
+

@@ -4470,6 +4470,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8520,6 +8526,7 @@ dependencies = [
 ]
 
 [[package]]
+
 name = "tokio-tungstenite"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9776,11 +9783,13 @@ dependencies = [
  "lazy_static",
  "libsqlite3-sys",
  "log",
+ "md5",
  "metrics 0.12.1",
  "mime",
  "r2d2",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "shlex 0.1.1",
  "structopt",
  "thiserror 1.0.69",
@@ -9797,6 +9806,7 @@ dependencies = [
  "ya-service-api-interfaces",
  "ya-service-api-web",
  "ya-service-bus",
+ "ya-verifier",
 ]
 
 [[package]]
@@ -11318,6 +11328,32 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "ya-verifier"
+version = "0.1.0"
+dependencies = [
+ "actix",
+ "actix-rt",
+ "anyhow",
+ "chrono",
+ "futures 0.3.31",
+ "hex",
+ "log",
+ "metrics 0.12.1",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "uuid 0.8.2",
+ "ya-client-model",
+ "ya-core-model",
+ "ya-service-api",
+ "ya-service-api-interfaces",
+ "ya-service-bus",
 ]
 
 [[package]]
